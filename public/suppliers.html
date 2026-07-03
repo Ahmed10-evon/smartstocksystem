@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Supplier Directory</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-boxes-stacked"></i> SmartStock
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="inventory.html"><i class="fa-solid fa-mobile-screen-button"></i> Inventory Manager</a></li>
+            <li><a href="sales.html"><i class="fa-solid fa-receipt"></i> Sales</a></li>
+            <li><a href="suppliers.html" class="active"><i class="fa-solid fa-truck-field"></i> Suppliers</a></li>
+            <li><a href="joins.html"><i class="fa-solid fa-code-merge"></i> SQL Joins</a></li>
+        </ul>
+
+        <div class="theme-switch-wrapper">
+            <span><i class="fa-solid fa-moon"></i> Dark Mode</span>
+            <label class="switch" for="theme-checkbox">
+                <input type="checkbox" id="theme-checkbox" onclick="toggleTheme()">
+                <div class="slider"></div>
+            </label>
+        </div>
+
+        <a class="logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Out</a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-section">
+            <div>
+                <h1>Supplier Directory</h1>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0;">View corporate logistics reports from your database</p>
+            </div>
+            <div class="user-badge">
+                <i class="fa-regular fa-user" style="margin-right: 8px;"></i>
+                <span id="user-display">User</span>
+                <span id="role-badge" style="margin-left: 8px; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;"></span>
+            </div>
+        </div>
+
+        <!-- CASHIER ACCESS NOTICE -->
+        <div id="cashier-notice" style="display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px 18px; margin-bottom:20px; color:#92400e; font-size:14px;">
+            <i class="fa-solid fa-lock" style="margin-right:8px;"></i>
+            You are logged in as <strong>CASHIER</strong>. Onboarding new suppliers is restricted to Admins only.
+        </div>
+
+        <div class="directory-split" style="display: grid; gap: 28px;" id="supplier-grid">
+            <div class="panel">
+                <h2><i class="fa-solid fa-address-book"></i> Active Supplier Registry</h2>
+                <div style="overflow-x: auto;">
+                    <table id="supplier-table">
+                        <thead>
+                            <tr>
+                                <th>Supplier Name</th>
+                                <th>Corporate Email</th>
+                                <th>Contact Number</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Parsing data layers...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ADMIN ONLY: Add Supplier Form -->
+            <div class="panel" id="add-supplier-panel">
+                <h2><i class="fa-solid fa-user-plus"></i> Onboard Supplier</h2>
+                <form id="supplier-form">
+                    <div class="form-group">
+                        <label for="supName">Company Name</label>
+                        <input type="text" id="supName" required placeholder="e.g., Global Tech Inc">
+                    </div>
+                    <div class="form-group">
+                        <label for="supEmail">Contact Email</label>
+                        <input type="email" id="supEmail" required placeholder="e.g., supply@global.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="supPhone">Phone Number</label>
+                        <input type="text" id="supPhone" required placeholder="e.g., +1-800-555-0199">
+                    </div>
+                    <button type="submit" class="btn-submit">Register Supplier</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        const currentRole = localStorage.getItem('currentRole');
+        const currentUser = localStorage.getItem('currentUser');
+
+        // Show username and role badge
+        document.getElementById('user-display').innerText = currentUser || 'User';
+        const roleBadge = document.getElementById('role-badge');
+        if (currentRole === 'ADMIN') {
+            roleBadge.innerText = 'ADMIN';
+            roleBadge.style.background = '#eff6ff';
+            roleBadge.style.color = '#1d4ed8';
+        } else {
+            roleBadge.innerText = 'CASHIER';
+            roleBadge.style.background = '#f0fdf4';
+            roleBadge.style.color = '#16a34a';
+        }
+
+        // Apply role restrictions
+        function applyRoleRestrictions() {
+            if (currentRole !== 'ADMIN') {
+                document.getElementById('add-supplier-panel').style.display = 'none';
+                document.getElementById('cashier-notice').style.display = 'block';
+                document.getElementById('supplier-grid').style.gridTemplateColumns = '1fr';
+            } else {
+                document.getElementById('supplier-grid').style.gridTemplateColumns = '2fr 1fr';
+            }
+        }
+
+        // Theme Engine
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const checkbox = document.getElementById('theme-checkbox');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (checkbox) checkbox.checked = false;
+            }
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+        async function fetchSuppliers() {
+            try {
+                const response = await fetch(`${API_BASE}/suppliers`);
+                if (!response.ok) throw new Error('Data stream read fault.');
+                const data = await response.json();
+                const tableBody = document.querySelector('#supplier-table tbody');
+                tableBody.innerHTML = ''; 
+
+                if (data.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No supplier profiles active.</td></tr>`;
+                    return;
+                }
+
+                data.forEach(supplier => {
+                    const tr = document.createElement('tr');
+                    const name = supplier.SUPPLIER_NAME || supplier.NAME || 'N/A';
+                    const email = supplier.CONTACT_EMAIL || supplier.EMAIL || 'N/A';
+                    const phone = supplier.PHONE_NUMBER || supplier.PHONE || 'N/A';
+
+                    tr.innerHTML = `
+                        <td><strong>${name}</strong></td>
+                        <td>${email}</td>
+                        <td style="color: var(--text-muted); font-weight: 500;">${phone}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        document.getElementById('supplier-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (currentRole !== 'ADMIN') { alert('Access Denied: Admin only.'); return; }
+            const payload = {
+                name: document.getElementById('supName').value,
+                email: document.getElementById('supEmail').value,
+                phone: document.getElementById('supPhone').value
+            };
+            try {
+                const response = await fetch(`${API_BASE}/suppliers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    alert('Supplier registered successfully!');
+                    document.getElementById('supplier-form').reset();
+                    fetchSuppliers();
+                }
+            } catch (err) { alert('Network layer failure.'); }
+        });
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        window.onload = () => {
+            applyRoleRestrictions();
+            fetchSuppliers();
+        };
+    </script>
+</body>
+</html>

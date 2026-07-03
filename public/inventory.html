@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Inventory Manager</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-boxes-stacked"></i> SmartStock
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="inventory.html" class="active"><i class="fa-solid fa-mobile-screen-button"></i> Inventory Manager</a></li>
+            <li><a href="sales.html"><i class="fa-solid fa-receipt"></i> Sales</a></li>
+            <li><a href="suppliers.html"><i class="fa-solid fa-truck-field"></i> Suppliers</a></li>
+            <li><a href="joins.html"><i class="fa-solid fa-code-merge"></i> SQL Joins</a></li>
+        </ul>
+
+        <div class="theme-switch-wrapper">
+            <span><i class="fa-solid fa-moon"></i> Dark Mode</span>
+            <label class="switch" for="theme-checkbox">
+                <input type="checkbox" id="theme-checkbox" onclick="toggleTheme()">
+                <div class="slider"></div>
+            </label>
+        </div>
+
+        <a class="logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Out</a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-section">
+            <div>
+                <h1>Inventory Manager</h1>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0;">Manage your physical smartphone stock catalog</p>
+            </div>
+            <div class="user-badge">
+                <i class="fa-regular fa-user" style="margin-right: 8px;"></i>
+                <span id="user-display">User</span>
+                <span id="role-badge" style="margin-left: 8px; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;"></span>
+            </div>
+        </div>
+
+        <!-- CASHIER ACCESS NOTICE -->
+        <div id="cashier-notice" style="display:none; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px 18px; margin-bottom:20px; color:#92400e; font-size:14px;">
+            <i class="fa-solid fa-lock" style="margin-right:8px;"></i>
+            You are logged in as <strong>CASHIER</strong>. Adding new inventory items is restricted to Admins only.
+        </div>
+
+        <div class="directory-split" style="display: grid; gap: 28px;" id="inventory-grid">
+            <div class="panel">
+                <div class="form-group" style="position: relative; margin-bottom: 20px;">
+                    <input type="text" id="inventorySearch" placeholder="Search stock catalog by brand, model..." style="padding-left: 36px;">
+                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 14px; color: var(--text-muted);"></i>
+                </div>
+
+                <h2><i class="fa-solid fa-layer-group"></i> Current Stock Levels</h2>
+                <div style="overflow-x: auto;">
+                    <table id="inventory-table">
+                        <thead>
+                            <tr>
+    <th>ID</th>
+    <th>Brand</th>
+    <th>Model</th>
+    <th>Price</th>
+    <th>Stock</th>
+    <th>Supplier</th>
+    <th>Action</th>
+</tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Fetching stock registry...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ADMIN ONLY: Add Smartphone Form -->
+            <div class="panel" id="add-phone-panel">
+                <h2><i class="fa-solid fa-plus"></i> Add Smartphone</h2>
+                <form id="add-phone-form">
+                    <div class="form-group">
+                        <label for="brand">Brand Name</label>
+                        <input type="text" id="brand" required placeholder="e.g., Apple">
+                    </div>
+                    <div class="form-group">
+                        <label for="model">Model Name</label>
+                        <input type="text" id="model" required placeholder="e.g., iPhone 17">
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Unit Price ($)</label>
+                        <input type="number" id="price" step="0.01" required placeholder="e.g., 999.99">
+                    </div>
+                    <div class="form-group">
+                        <label for="stock">Initial Stock Quantity</label>
+                        <input type="number" id="stock" required min="0" placeholder="e.g., 50">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplierId">Supplier ID Assignment</label>
+                        <input type="number" id="supplierId" required placeholder="e.g., 1">
+                    </div>
+                    <button type="submit" class="btn-submit">Register Item</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let cachedInventory = [];
+        const currentRole = localStorage.getItem('currentRole');
+        const currentUser = localStorage.getItem('currentUser');
+
+        // Show username and role badge
+        document.getElementById('user-display').innerText = currentUser || 'User';
+        const roleBadge = document.getElementById('role-badge');
+        if (currentRole === 'ADMIN') {
+            roleBadge.innerText = 'ADMIN';
+            roleBadge.style.background = '#eff6ff';
+            roleBadge.style.color = '#1d4ed8';
+        } else {
+            roleBadge.innerText = 'CASHIER';
+            roleBadge.style.background = '#f0fdf4';
+            roleBadge.style.color = '#16a34a';
+        }
+
+        // Apply role restrictions
+        function applyRoleRestrictions() {
+            if (currentRole !== 'ADMIN') {
+                // Hide add form, show notice, make grid single column
+                document.getElementById('add-phone-panel').style.display = 'none';
+                document.getElementById('cashier-notice').style.display = 'block';
+                document.getElementById('inventory-grid').style.gridTemplateColumns = '1fr';
+            } else {
+                document.getElementById('inventory-grid').style.gridTemplateColumns = '2fr 1fr';
+            }
+        }
+
+        // Theme Engine
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const checkbox = document.getElementById('theme-checkbox');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (checkbox) checkbox.checked = false;
+            }
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+        async function fetchInventory() {
+            try {
+                const response = await fetch(`${API_BASE}/inventory`);
+                if (!response.ok) throw new Error('Data fetch interruption.');
+                cachedInventory = await response.json();
+                renderTable(cachedInventory);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function deletePhone(phoneId) {
+    if (!confirm(`Are you sure you want to delete Phone ID #${phoneId}? This cannot be undone.`)) return;
+    try {
+        const response = await fetch(`${API_BASE}/inventory/${phoneId}`, {
+            method: 'DELETE'
+        });
+        if (response.ok) {
+            alert('Phone deleted successfully.');
+            fetchInventory(); // Refresh table
+        } else {
+            const err = await response.json();
+            alert(`Delete failed: ${err.error}`);
+        }
+    } catch (error) {
+        alert('Connection failure.');
+    }
+}
+        function renderTable(data) {
+            const tableBody = document.querySelector('#inventory-table tbody');
+            tableBody.innerHTML = ''; 
+            if (data.length === 0) {
+tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No inventory found.</td></tr>`;
+                return;
+            }
+            data.forEach(item => {
+                const tr = document.createElement('tr');
+                const stockStatusBadge = item.STOCK_QUANTITY <= 5 
+                    ? `<span class="badge badge-low">${item.STOCK_QUANTITY} (Low)</span>`
+                    : `<span class="badge badge-ok">${item.STOCK_QUANTITY} units</span>`;
+
+               tr.innerHTML = `
+    <td><strong>#${item.PHONE_ID}</strong></td>
+    <td>${item.BRAND}</td>
+    <td>${item.MODEL}</td>
+    <td style="font-weight: 500;">$${item.PRICE.toFixed(2)}</td>
+    <td>${stockStatusBadge}</td>
+    <td style="color: var(--text-muted);">${item.SUPPLIER_NAME || 'Unassigned'}</td>
+    ${currentRole === 'ADMIN' ? `<td><button onclick="deletePhone(${item.PHONE_ID})" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:6px; cursor:pointer;">Delete</button></td>` : '<td></td>'}
+`;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('inventorySearch').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filteredData = cachedInventory.filter(item => {
+                return (item.BRAND && item.BRAND.toLowerCase().includes(query)) || 
+                       (item.MODEL && item.MODEL.toLowerCase().includes(query));
+            });
+            renderTable(filteredData);
+        });
+
+        document.getElementById('add-phone-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (currentRole !== 'ADMIN') { alert('Access Denied: Admin only.'); return; }
+            const payload = {
+                brand: document.getElementById('brand').value,
+                model: document.getElementById('model').value,
+                price: parseFloat(document.getElementById('price').value),
+                stock: parseInt(document.getElementById('stock').value),
+                supplier_id: parseInt(document.getElementById('supplierId').value)
+            };
+            try {
+                const response = await fetch(`${API_BASE}/inventory`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (response.ok) {
+                    alert('Smartphone added successfully!');
+                    document.getElementById('add-phone-form').reset();
+                    fetchInventory(); 
+                }
+            } catch (err) { alert('Error updating records.'); }
+        });
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        window.onload = () => {
+            applyRoleRestrictions();
+            fetchInventory();
+        };
+    </script>
+</body>
+</html>

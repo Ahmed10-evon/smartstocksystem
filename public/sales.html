@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - Sales</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-boxes-stacked"></i> SmartStock
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="inventory.html"><i class="fa-solid fa-mobile-screen-button"></i> Inventory Manager</a></li>
+            <li><a href="sales.html" class="active"><i class="fa-solid fa-receipt"></i> Sales</a></li>
+            <li><a href="suppliers.html"><i class="fa-solid fa-truck-field"></i> Suppliers</a></li>
+            <li><a href="joins.html"><i class="fa-solid fa-code-merge"></i> SQL Joins</a></li>
+        </ul>
+
+        <div class="theme-switch-wrapper">
+            <span><i class="fa-solid fa-moon"></i> Dark Mode</span>
+            <label class="switch" for="theme-checkbox">
+                <input type="checkbox" id="theme-checkbox" onclick="toggleTheme()">
+                <div class="slider"></div>
+            </label>
+        </div>
+
+        <a class="logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Out</a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-section">
+            <div>
+                <h1>Sales</h1>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0;">Process new sales and review all transaction records</p>
+            </div>
+            <div class="user-badge">
+                <i class="fa-regular fa-user" style="margin-right: 8px;"></i>
+                <span id="user-display">User</span>
+            </div>
+        </div>
+
+        <!-- ================================================ -->
+        <!-- NEW SALE FORM                                    -->
+        <!-- ================================================ -->
+        <div class="panel" style="margin-bottom: 24px;">
+            <h2><i class="fa-solid fa-cash-register" style="color: var(--primary); margin-right: 8px;"></i>Process New Sale</h2>
+            <form id="new-sale-form">
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
+                        <label for="salePhoneId">Phone ID</label>
+                        <input type="number" id="salePhoneId" required placeholder="e.g., 1">
+                    </div>
+                    <div class="form-group" style="margin: 0; flex: 1; min-width: 120px;">
+                        <label for="saleQuantity">Quantity</label>
+                        <input type="number" id="saleQuantity" required min="1" value="1">
+                    </div>
+                    <div style="padding-bottom: 2px;">
+                        <button type="submit" class="btn-submit">
+                            <i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i>Complete Sale
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <!-- Sale result message -->
+            <div id="sale-message" style="display: none; margin-top: 16px; padding: 12px 16px; border-radius: 8px; font-weight: 500;"></div>
+        </div>
+
+        <!-- ================================================ -->
+        <!-- SALES HISTORY TABLE                             -->
+        <!-- ================================================ -->
+        <div class="panel">
+            <h2><i class="fa-solid fa-list-check" style="margin-right: 8px;"></i>Complete Transaction Audit</h2>
+            <div style="overflow-x: auto;">
+                <table id="sales-table">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>Timestamp</th>
+                            <th>Device Details</th>
+                            <th>Quantity Sold</th>
+                            <th>Revenue Collected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Compiling transaction histories...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+
+        document.getElementById('user-display').innerText = localStorage.getItem('currentUser') || 'User';
+
+        // Theme Engine
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const checkbox = document.getElementById('theme-checkbox');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (checkbox) checkbox.checked = false;
+            }
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+        // Show success or error message below the form
+        function showMessage(text, isSuccess) {
+            const box = document.getElementById('sale-message');
+            box.style.display = 'block';
+            box.style.background = isSuccess ? '#dcfce7' : '#fee2e2';
+            box.style.color = isSuccess ? '#16a34a' : '#dc2626';
+            box.style.border = isSuccess ? '1px solid #bbf7d0' : '1px solid #fecaca';
+            box.innerHTML = isSuccess
+                ? `<i class="fa-solid fa-circle-check" style="margin-right:6px;"></i>${text}`
+                : `<i class="fa-solid fa-circle-xmark" style="margin-right:6px;"></i>${text}`;
+            // Auto-hide after 4 seconds
+            setTimeout(() => { box.style.display = 'none'; }, 4000);
+        }
+
+        // Process new sale
+        document.getElementById('new-sale-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phone_id = parseInt(document.getElementById('salePhoneId').value);
+            const quantity = parseInt(document.getElementById('saleQuantity').value);
+
+            try {
+                const response = await fetch(`${API_BASE}/sales`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone_id, quantity })
+                });
+
+                if (response.ok) {
+                    showMessage('Sale completed successfully! Stock has been updated.', true);
+                    document.getElementById('new-sale-form').reset();
+                    document.getElementById('saleQuantity').value = 1; // Reset quantity to 1
+                    fetchSalesLog(); // Refresh the history table instantly
+                } else {
+                    const err = await response.json();
+                    showMessage(`Sale Failed: ${err.error}`, false);
+                }
+            } catch (error) {
+                showMessage('Connection failure. Is the server running?', false);
+                console.error(error);
+            }
+        });
+
+        // Fetch and display sales history
+        async function fetchSalesLog() {
+            try {
+                const response = await fetch(`${API_BASE}/sales`);
+                if (!response.ok) throw new Error('Could not pull sales data.');
+                const data = await response.json();
+                
+                const tableBody = document.querySelector('#sales-table tbody');
+                tableBody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No sales processed yet.</td></tr>`;
+                    return;
+                }
+
+                data.forEach(sale => {
+                    const tr = document.createElement('tr');
+                    const dateFormatted = new Date(sale.SALE_DATE).toLocaleString();
+                    tr.innerHTML = `
+                        <td><strong>#TXN-${sale.SALE_ID}</strong></td>
+                        <td>${dateFormatted}</td>
+                        <td><strong>${sale.BRAND}</strong> ${sale.MODEL}</td>
+                        <td>${sale.QUANTITY} units</td>
+                        <td style="font-weight: 600; color: var(--success);">$${sale.TOTAL_REVENUE.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+            } catch (err) { console.error(err); }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+        window.onload = fetchSalesLog;
+    </script>
+</body>
+</html>

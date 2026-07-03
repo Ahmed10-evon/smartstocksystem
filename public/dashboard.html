@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - High-Level Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-boxes-stacked"></i> SmartStock
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html" class="active"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="inventory.html"><i class="fa-solid fa-mobile-screen-button"></i> Inventory Manager</a></li>
+            <li><a href="sales.html"><i class="fa-solid fa-receipt"></i> Sales History</a></li>
+            <li><a href="suppliers.html"><i class="fa-solid fa-truck-field"></i> Suppliers</a></li>
+            <li><a href="joins.html"><i class="fa-solid fa-code-merge"></i> SQL Joins</a></li>
+        </ul>
+
+        <div class="theme-switch-wrapper">
+            <span><i class="fa-solid fa-moon"></i> Dark Mode</span>
+            <label class="switch" for="theme-checkbox">
+                <input type="checkbox" id="theme-checkbox" onclick="toggleTheme()">
+                <div class="slider"></div>
+            </label>
+        </div>
+
+        <a class="logout-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Out</a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-section">
+            <div>
+                <h1>Business Overview</h1>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0;">Real-time management intelligence data</p>
+            </div>
+            <div class="user-badge">
+                <i class="fa-regular fa-user" style="margin-right: 8px;"></i> Welcome, &nbsp;<span id="user-display">User</span>!
+                <span id="role-badge" style="margin-left: 10px; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;"></span>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-info">
+                    <h3>Stock Brand Variations</h3>
+                    <p id="total-brands">0</p>
+                </div>
+                <div class="metric-icon" style="background: #eff6ff; color: var(--primary);"><i class="fa-solid fa-tags"></i></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-info">
+                    <h3>Total Unit Volume</h3>
+                    <p id="total-units">0</p>
+                </div>
+                <div class="metric-icon" style="background: #ecfdf5; color: var(--success);"><i class="fa-solid fa-warehouse"></i></div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-info">
+                    <h3>Asset Net Evaluation</h3>
+                    <p id="total-valuation">$0.00</p>
+                </div>
+                <div class="metric-icon" style="background: #fffbeb; color: var(--warning);"><i class="fa-solid fa-dollar-sign"></i></div>
+            </div>
+        </div>
+
+        <div class="dashboard-split">
+            <div class="panel">
+                <h2>Asset Distribution Breakdown by Brand</h2>
+                <div style="overflow-x: auto;">
+                    <table id="analytics-table">
+                        <thead>
+                            <tr>
+                                <th>Brand Portfolio</th>
+                                <th>Units Logged</th>
+                                <th>Holding Asset Capital Valuation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Fetching records...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="chart-container" style="margin-top: 24px; height: 320px; position: relative;">
+                    <canvas id="analyticsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Quick Terminal Sale</h2>
+                <form id="quick-sale-form">
+                    <div class="form-group">
+                        <label for="salePhoneId">Phone ID Reference</label>
+                        <input type="number" id="salePhoneId" required placeholder="e.g., 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="saleQuantity">Quantity Outward</label>
+                        <input type="number" id="saleQuantity" required min="1" value="1">
+                    </div>
+                    <button type="submit" class="btn-submit">Complete Checkout</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ======================================================= -->
+        <!-- SUBQUERY: Premium phones above average price            -->
+        <!-- ADMIN ONLY                                              -->
+        <!-- ======================================================= -->
+        <div class="panel" id="premium-panel" style="margin-top: 24px;">
+            <h2><i class="fa-solid fa-star" style="color: var(--warning); margin-right: 8px;"></i>Premium Phones <span style="font-size: 13px; color: var(--text-muted); font-weight: 400;">(Above Average Price — Subquery)</span></h2>
+            <button class="btn-submit" onclick="fetchPremiumPhones()">
+                <i class="fa-solid fa-magnifying-glass" style="margin-right: 6px;"></i>Load Premium Phones
+            </button>
+            <div style="overflow-x: auto; margin-top: 16px;">
+                <table id="premium-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Brand</th>
+                            <th>Model</th>
+                            <th>Price</th>
+                            <th>Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Click button to load</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ======================================================= -->
+        <!-- STORED PROCEDURE: Brand sales report                    -->
+        <!-- ADMIN ONLY                                              -->
+        <!-- ======================================================= -->
+        <div class="panel" id="report-panel" style="margin-top: 24px;">
+            <h2><i class="fa-solid fa-file-invoice" style="color: var(--primary); margin-right: 8px;"></i>Brand Sales Report <span style="font-size: 13px; color: var(--text-muted); font-weight: 400;">(Stored Procedure)</span></h2>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <input
+                    type="text"
+                    id="reportBrand"
+                    placeholder="Enter Brand (e.g. Samsung)"
+                    style="padding: 9px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card, #fff); color: var(--text-main); font-size: 14px; min-width: 220px;"
+                >
+                <button class="btn-submit" onclick="fetchBrandReport()">
+                    <i class="fa-solid fa-chart-bar" style="margin-right: 6px;"></i>Generate Report
+                </button>
+            </div>
+            <div style="overflow-x: auto; margin-top: 16px;">
+                <table id="report-table">
+                    <thead>
+                        <tr>
+                            <th>Brand</th>
+                            <th>Model</th>
+                            <th>Qty Sold</th>
+                            <th>Date</th>
+                            <th>Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Enter a brand name above and click Generate</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ======================================================= -->
+        <!-- TRIGGER: Low stock alerts                               -->
+        <!-- ======================================================= -->
+        <div class="panel" style="margin-top: 24px;">
+            <h2><i class="fa-solid fa-triangle-exclamation" style="color: var(--danger, #ef4444); margin-right: 8px;"></i>Low Stock Alerts <span style="font-size: 13px; color: var(--text-muted); font-weight: 400;">(Auto-triggered by Oracle)</span></h2>
+            <button class="btn-submit" onclick="fetchAlerts()">
+                <i class="fa-solid fa-bell" style="margin-right: 6px;"></i>Check Alerts
+            </button>
+            <div style="overflow-x: auto; margin-top: 16px;">
+                <table id="alerts-table">
+                    <thead>
+                        <tr>
+                            <th>Phone ID</th>
+                            <th>Brand</th>
+                            <th>Model</th>
+                            <th>Stock Left</th>
+                            <th>Alert Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Click button to check alerts</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="receiptModal" class="modal-overlay">
+        <div class="receipt-card">
+            <div class="receipt-header">
+                <h3>SMARTSTOCK POS</h3>
+                <p>INVOICE TRANSACTION LOG</p>
+                <p id="rcpt-date"></p>
+            </div>
+            <div class="receipt-line"></div>
+            <div class="receipt-row">
+                <span>Receipt ID:</span>
+                <span id="rcpt-id" style="font-weight: bold;"></span>
+            </div>
+            <div class="receipt-row">
+                <span>Product:</span>
+                <span id="rcpt-item"></span>
+            </div>
+            <div class="receipt-row">
+                <span>Quantity:</span>
+                <span id="rcpt-qty"></span>
+            </div>
+            <div class="receipt-row">
+                <span>Unit Cost:</span>
+                <span id="rcpt-cost"></span>
+            </div>
+            <div class="receipt-line"></div>
+            <div class="receipt-total">
+                <span>TOTAL DUE:</span>
+                <span id="rcpt-total"></span>
+            </div>
+            <div class="receipt-line" style="border-top-style: dotted;"></div>
+            <p style="text-align: center; font-size: 12px; margin: 0;">Thank you for your business!</p>
+            
+            <div class="modal-actions">
+                <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+                <button class="btn-close" onclick="closeReceiptModal()">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let myChartInstance = null;
+        const currentRole = localStorage.getItem('currentRole');
+
+        document.getElementById('user-display').innerText = localStorage.getItem('currentUser') || 'Admin';
+
+        const roleBadge = document.getElementById('role-badge');
+        if (roleBadge) {
+            roleBadge.innerText = currentRole || 'CASHIER';
+            if (currentRole === 'ADMIN') {
+                roleBadge.style.background = '#eff6ff';
+                roleBadge.style.color = '#1d4ed8';
+            } else {
+                roleBadge.style.background = '#f0fdf4';
+                roleBadge.style.color = '#16a34a';
+            }
+        }
+
+        function applyRoleRestrictions() {
+            if (currentRole !== 'ADMIN') {
+                // Hide admin-only analytics sections from CASHIER
+                const premiumPanel = document.getElementById('premium-panel');
+                const reportPanel = document.getElementById('report-panel');
+                if (premiumPanel) premiumPanel.style.display = 'none';
+                if (reportPanel) reportPanel.style.display = 'none';
+            }
+        }
+
+        // Theme Engine Configuration
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const checkbox = document.getElementById('theme-checkbox');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (checkbox) checkbox.checked = false;
+            }
+        }
+
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+        async function loadAnalytics() {
+            try {
+                const response = await fetch(`${API_BASE}/analytics/stock-value`);
+                if (!response.ok) throw new Error('Query mismatch error.');
+                
+                const data = await response.json();
+                let uniqueBrands = data.length;
+                let collectiveUnits = 0;
+                let assetValuationTotal = 0;
+                
+                let chartLabels = [];
+                let chartValues = [];
+
+                const tableBody = document.querySelector('#analytics-table tbody');
+                tableBody.innerHTML = ''; 
+
+                if(uniqueBrands === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No inventory tracked yet.</td></tr>`;
+                    return;
+                }
+
+                data.forEach(row => {
+                    collectiveUnits += row.TOTAL_PHONES;
+                    assetValuationTotal += row.TOTAL_VALUE;
+                    
+                    chartLabels.push(row.BRAND);
+                    chartValues.push(row.TOTAL_PHONES);
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${row.BRAND}</strong></td>
+                        <td>${row.TOTAL_PHONES} units</td>
+                        <td style="font-weight: 600; color: var(--text-main);">$${row.TOTAL_VALUE.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+                document.getElementById('total-brands').innerText = uniqueBrands;
+                document.getElementById('total-units').innerText = collectiveUnits;
+                document.getElementById('total-valuation').innerText = `$${assetValuationTotal.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+                renderChart(chartLabels, chartValues);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderChart(labels, values) {
+            const ctx = document.getElementById('analyticsChart').getContext('2d');
+            if (myChartInstance) myChartInstance.destroy();
+
+            const isDark = document.body.classList.contains('dark-mode');
+            const fontColor = isDark ? '#94a3b8' : '#64748b';
+
+            myChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Stock Quantity',
+                        data: values,
+                        backgroundColor: '#3b82f6',
+                        borderColor: '#1d4ed8',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { 
+                        y: { beginAtZero: true, ticks: { color: fontColor } },
+                        x: { ticks: { color: fontColor } }
+                    },
+                    plugins: {
+                        legend: { labels: { color: fontColor } }
+                    }
+                }
+            });
+        }
+
+        async function triggerReceiptPopup() {
+            try {
+                const response = await fetch(`${API_BASE}/sales`);
+                if (!response.ok) return;
+                
+                const salesLog = await response.json();
+                if (salesLog.length === 0) return;
+                
+                const targetSale = salesLog[0];
+                const dateFormatted = new Date(targetSale.SALE_DATE).toLocaleString();
+
+                document.getElementById('rcpt-id').innerText = `TXN-${targetSale.SALE_ID}`;
+                document.getElementById('rcpt-date').innerText = dateFormatted;
+                document.getElementById('rcpt-item').innerText = `${targetSale.BRAND} ${targetSale.MODEL}`;
+                document.getElementById('rcpt-qty').innerText = `${targetSale.QUANTITY}x`;
+                document.getElementById('rcpt-cost').innerText = `$${targetSale.PRICE.toFixed(2)}`;
+                document.getElementById('rcpt-total').innerText = `$${targetSale.TOTAL_REVENUE.toFixed(2)}`;
+
+                document.getElementById('receiptModal').style.display = 'flex';
+            } catch (err) { console.error(err); }
+        }
+
+        function closeReceiptModal() { document.getElementById('receiptModal').style.display = 'none'; }
+
+        document.getElementById('quick-sale-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phone_id = parseInt(document.getElementById('salePhoneId').value);
+            const quantity = parseInt(document.getElementById('saleQuantity').value);
+
+            try {
+                const response = await fetch(`${API_BASE}/sales`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone_id, quantity })
+                });
+
+                if (response.ok) {
+                    document.getElementById('quick-sale-form').reset();
+                    await loadAnalytics(); 
+                    await triggerReceiptPopup(); 
+                } else {
+                    const errorMsg = await response.json();
+                    alert(`Operational Interruption: ${errorMsg.error}`);
+                }
+            } catch (error) { alert('Connection failure.'); }
+        });
+
+        // ============================================================
+        // SUBQUERY — Load phones priced above average
+        // ============================================================
+        async function fetchPremiumPhones() {
+            const tbody = document.querySelector('#premium-table tbody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Loading...</td></tr>';
+            try {
+                const res = await fetch(`${API_BASE}/inventory/premium`);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No premium phones found.</td></tr>';
+                    return;
+                }
+                data.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${p.PHONE_ID}</td>
+                        <td><strong>${p.BRAND}</strong></td>
+                        <td>${p.MODEL}</td>
+                        <td style="color: var(--primary); font-weight: 600;">$${p.PRICE.toFixed(2)}</td>
+                        <td>${p.STOCK_QUANTITY} units</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load data.</td></tr>';
+                console.error(err);
+            }
+        }
+
+        // ============================================================
+        // STORED PROCEDURE — Brand sales report
+        // ============================================================
+        async function fetchBrandReport() {
+            const brand = document.getElementById('reportBrand').value.trim();
+            if (!brand) { alert('Please enter a brand name.'); return; }
+            const tbody = document.querySelector('#report-table tbody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Loading...</td></tr>';
+            try {
+                const res = await fetch(`${API_BASE}/report/${encodeURIComponent(brand)}`);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No sales found for "${brand}".</td></tr>`;
+                    return;
+                }
+                data.forEach(r => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${r.BRAND}</strong></td>
+                        <td>${r.MODEL}</td>
+                        <td>${r.QUANTITY}</td>
+                        <td>${new Date(r.SALE_DATE).toLocaleDateString()}</td>
+                        <td style="font-weight: 600; color: var(--success);">$${r.REVENUE.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load report.</td></tr>';
+                console.error(err);
+            }
+        }
+
+        // ============================================================
+        // TRIGGER — Low stock alerts log
+        // ============================================================
+        async function fetchAlerts() {
+            const tbody = document.querySelector('#alerts-table tbody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">Loading...</td></tr>';
+            try {
+                const res = await fetch(`${API_BASE}/alerts`);
+                const data = await res.json();
+                tbody.innerHTML = '';
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: green;">✅ No low stock alerts — all good!</td></tr>';
+                    return;
+                }
+                data.forEach(a => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${a.PHONE_ID}</td>
+                        <td><strong>${a.BRAND}</strong></td>
+                        <td>${a.MODEL}</td>
+                        <td style="color: #ef4444; font-weight: bold;">⚠️ ${a.STOCK_LEFT} units</td>
+                        <td>${new Date(a.ALERT_TIME).toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to load alerts.</td></tr>';
+                console.error(err);
+            }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+        window.onload = () => {
+            applyRoleRestrictions();
+            loadAnalytics();
+        };
+    </script>
+</body>
+</html>

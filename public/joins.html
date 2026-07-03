@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartStock - SQL Joins Explorer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <script>
+        if (!localStorage.getItem('currentUser')) {
+            window.location.href = 'index.html';
+        }
+    </script>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-boxes-stacked"></i> SmartStock
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="dashboard.html"><i class="fa-solid fa-chart-line"></i> Dashboard</a></li>
+            <li><a href="inventory.html"><i class="fa-solid fa-mobile-screen-button"></i> Inventory Manager</a></li>
+            <li><a href="sales.html"><i class="fa-solid fa-receipt"></i> Sales</a></li>
+            <li><a href="suppliers.html"><i class="fa-solid fa-truck-field"></i> Suppliers</a></li>
+            <li><a href="joins.html" class="active"><i class="fa-solid fa-code-merge"></i> SQL Joins</a></li>
+        </ul>
+
+        <div class="theme-switch-wrapper">
+            <span><i class="fa-solid fa-moon"></i> Dark Mode</span>
+            <label class="switch" for="theme-checkbox">
+                <input type="checkbox" id="theme-checkbox" onclick="toggleTheme()">
+                <div class="slider"></div>
+            </label>
+        </div>
+
+        <a class="logout-btn" onclick="logout()">
+            <i class="fa-solid fa-right-from-bracket"></i> Log Out
+        </a>
+    </div>
+
+    <div class="main-content">
+        <div class="header-section">
+            <div>
+                <h1>SQL Joins Explorer</h1>
+                <p style="color: var(--text-muted); margin: 4px 0 0 0;">
+                    Live demonstration of all SQL JOIN types on real database tables
+                </p>
+            </div>
+            <div class="user-badge">
+                <i class="fa-regular fa-user" style="margin-right: 8px;"></i>
+                <span id="user-display">User</span>
+            </div>
+        </div>
+
+        <!-- JOIN SELECTOR TABS -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px;">
+            <button class="join-tab active-tab" onclick="loadJoin('inner', this)">
+                <i class="fa-solid fa-circle-dot"></i> INNER JOIN
+            </button>
+            <button class="join-tab" onclick="loadJoin('left', this)">
+                <i class="fa-solid fa-circle-half-stroke"></i> LEFT OUTER JOIN
+            </button>
+            <button class="join-tab" onclick="loadJoin('right', this)">
+                <i class="fa-solid fa-circle-half-stroke fa-flip-horizontal"></i> RIGHT OUTER JOIN
+            </button>
+            <button class="join-tab" onclick="loadJoin('full', this)">
+                <i class="fa-solid fa-circle"></i> FULL OUTER JOIN
+            </button>
+            <button class="join-tab" onclick="loadJoin('cross', this)">
+                <i class="fa-solid fa-table-cells"></i> CROSS JOIN
+            </button>
+            <button class="join-tab" onclick="loadJoin('self', this)">
+                <i class="fa-solid fa-arrows-to-dot"></i> SELF JOIN
+            </button>
+        </div>
+
+        <!-- JOIN DESCRIPTION CARD -->
+        <div class="panel" style="margin-bottom: 24px; border-left: 4px solid var(--primary);">
+            <h2 id="join-title" style="margin-bottom: 6px;">INNER JOIN</h2>
+            <p id="join-description" style="color: var(--text-muted); margin: 0 0 12px 0;">
+                Returns only rows where there is a match in BOTH tables.
+                Phones with no supplier and suppliers with no phones are excluded.
+            </p>
+            <code id="join-sql" style="display:block; background: var(--bg-input, #f1f5f9); padding: 12px 16px; border-radius: 8px; font-size: 13px; color: var(--primary); white-space: pre-wrap;"></code>
+        </div>
+
+        <!-- RESULTS TABLE -->
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="margin: 0;"><i class="fa-solid fa-table" style="margin-right: 8px;"></i>Query Results</h2>
+                <span id="row-count" style="font-size: 13px; color: var(--text-muted);"></span>
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="join-table">
+                    <thead id="join-thead"></thead>
+                    <tbody id="join-tbody">
+                        <tr><td colspan="5" style="text-align:center; color:var(--text-muted);">
+                            Select a join type above to load results.
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .join-tab {
+            padding: 9px 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-card, #fff);
+            color: var(--text-main);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .join-tab:hover { border-color: var(--primary); color: var(--primary); }
+        .active-tab {
+            background: var(--primary) !important;
+            color: white !important;
+            border-color: var(--primary) !important;
+        }
+    </style>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        document.getElementById('user-display').innerText = localStorage.getItem('currentUser') || 'User';
+
+        // Theme Engine
+        function applySavedTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const checkbox = document.getElementById('theme-checkbox');
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                if (checkbox) checkbox.checked = true;
+            } else {
+                document.body.classList.remove('dark-mode');
+                if (checkbox) checkbox.checked = false;
+            }
+        }
+        function toggleTheme() {
+            if (document.body.classList.contains('dark-mode')) {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        document.addEventListener('DOMContentLoaded', applySavedTheme);
+
+        const joinInfo = {
+            inner: {
+                title: 'INNER JOIN',
+                description: 'Returns only rows where there is a match in BOTH tables. Phones with no supplier and suppliers with no phones are excluded.',
+                sql: `SELECT s.Phone_ID, s.Brand, s.Model, s.Price, sup.Name AS Supplier_Name
+FROM Smartphones s
+INNER JOIN Suppliers sup ON s.Supplier_ID = sup.Supplier_ID
+ORDER BY s.Phone_ID`,
+                headers: ['Phone ID', 'Brand', 'Model', 'Price', 'Supplier'],
+                keys: ['PHONE_ID', 'BRAND', 'MODEL', 'PRICE', 'SUPPLIER_NAME']
+            },
+            left: {
+                title: 'LEFT OUTER JOIN',
+                description: 'Returns ALL rows from the left table (Smartphones), plus matched rows from the right table (Suppliers). Unmatched phones show NULL for supplier.',
+                sql: `SELECT s.Phone_ID, s.Brand, s.Model, s.Price, sup.Name AS Supplier_Name
+FROM Smartphones s
+LEFT OUTER JOIN Suppliers sup ON s.Supplier_ID = sup.Supplier_ID
+ORDER BY s.Phone_ID`,
+                headers: ['Phone ID', 'Brand', 'Model', 'Price', 'Supplier'],
+                keys: ['PHONE_ID', 'BRAND', 'MODEL', 'PRICE', 'SUPPLIER_NAME']
+            },
+            right: {
+                title: 'RIGHT OUTER JOIN',
+                description: 'Returns ALL rows from the right table (Suppliers), plus matched rows from the left table (Smartphones). Suppliers with no phones show NULL for phone fields.',
+                sql: `SELECT s.Phone_ID, s.Brand, s.Model, sup.Supplier_ID, sup.Name AS Supplier_Name
+FROM Smartphones s
+RIGHT OUTER JOIN Suppliers sup ON s.Supplier_ID = sup.Supplier_ID
+ORDER BY sup.Supplier_ID`,
+                headers: ['Phone ID', 'Brand', 'Model', 'Supplier ID', 'Supplier'],
+                keys: ['PHONE_ID', 'BRAND', 'MODEL', 'SUPPLIER_ID', 'SUPPLIER_NAME']
+            },
+            full: {
+                title: 'FULL OUTER JOIN',
+                description: 'Returns ALL rows from BOTH tables. Rows with no match on either side are included with NULL values for the missing columns.',
+                sql: `SELECT s.Phone_ID, s.Brand, s.Model, sup.Supplier_ID, sup.Name AS Supplier_Name
+FROM Smartphones s
+FULL OUTER JOIN Suppliers sup ON s.Supplier_ID = sup.Supplier_ID
+ORDER BY s.Phone_ID NULLS LAST`,
+                headers: ['Phone ID', 'Brand', 'Model', 'Supplier ID', 'Supplier'],
+                keys: ['PHONE_ID', 'BRAND', 'MODEL', 'SUPPLIER_ID', 'SUPPLIER_NAME']
+            },
+            cross: {
+                title: 'CROSS JOIN',
+                description: 'Returns the Cartesian product — every phone paired with every supplier. If there are 5 phones and 3 suppliers, the result has 15 rows.',
+                sql: `SELECT s.Brand, s.Model, sup.Name AS Supplier_Name
+FROM Smartphones s
+CROSS JOIN Suppliers sup
+ORDER BY s.Phone_ID`,
+                headers: ['Brand', 'Model', 'Supplier Name'],
+                keys: ['BRAND', 'MODEL', 'SUPPLIER_NAME']
+            },
+            self: {
+                title: 'SELF JOIN',
+                description: 'Joins the Smartphones table to itself to find pairs of phones from the same brand — comparing a table with its own records.',
+                sql: `SELECT a.Brand, a.Model AS Phone_A, b.Model AS Phone_B,
+       a.Price AS Price_A, b.Price AS Price_B
+FROM Smartphones a
+INNER JOIN Smartphones b ON a.Brand = b.Brand AND a.Phone_ID < b.Phone_ID
+ORDER BY a.Brand`,
+                headers: ['Brand', 'Phone A', 'Phone B', 'Price A', 'Price B'],
+                keys: ['BRAND', 'PHONE_A', 'PHONE_B', 'PRICE_A', 'PRICE_B']
+            }
+        };
+
+        async function loadJoin(type, btnEl) {
+            // Update active tab
+            document.querySelectorAll('.join-tab').forEach(b => b.classList.remove('active-tab'));
+            btnEl.classList.add('active-tab');
+
+            const info = joinInfo[type];
+
+            // Update description card
+            document.getElementById('join-title').innerText = info.title;
+            document.getElementById('join-description').innerText = info.description;
+            document.getElementById('join-sql').innerText = info.sql;
+
+            // Show loading
+            const tbody = document.getElementById('join-tbody');
+            const thead = document.getElementById('join-thead');
+            tbody.innerHTML = `<tr><td colspan="${info.headers.length}" style="text-align:center; color:var(--text-muted);">Loading...</td></tr>`;
+
+            // Build header
+            thead.innerHTML = '<tr>' + info.headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+
+            try {
+                const res = await fetch(`${API_BASE}/joins/${type}`);
+                const data = await res.json();
+
+                document.getElementById('row-count').innerText = `${data.length} row${data.length !== 1 ? 's' : ''} returned`;
+                tbody.innerHTML = '';
+
+                if (data.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${info.headers.length}" style="text-align:center; color:var(--text-muted);">No results returned.</td></tr>`;
+                    return;
+                }
+
+                data.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = info.keys.map(key => {
+                        const val = row[key];
+                        if (val === null || val === undefined) {
+                            return `<td style="color:#94a3b8; font-style:italic;">NULL</td>`;
+                        }
+                        if (key === 'PRICE' || key === 'PRICE_A' || key === 'PRICE_B') {
+                            return `<td style="font-weight:500;">$${parseFloat(val).toFixed(2)}</td>`;
+                        }
+                        return `<td>${val}</td>`;
+                    }).join('');
+                    tbody.appendChild(tr);
+                });
+
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="${info.headers.length}" style="text-align:center; color:red;">Failed to load data.</td></tr>`;
+                console.error(err);
+            }
+        }
+
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+        // Auto-load INNER JOIN on page open
+        window.onload = () => {
+            const firstTab = document.querySelector('.join-tab');
+            loadJoin('inner', firstTab);
+        };
+    </script>
+</body>
+</html>
