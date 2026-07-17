@@ -905,8 +905,7 @@ td[style*="color:#94a3b8"] {
     color: #92400e !important;
     font-size: 14px !important;
     font-weight: 500 !important;
-    display: flex !important;
-    align-items: center;
+    align-items: center; /* display controlled by JS */
     gap: 10px;
     box-shadow: 0 4px 16px rgba(245,158,11,0.15);
 }

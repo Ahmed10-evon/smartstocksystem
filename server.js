@@ -174,8 +174,23 @@ app.get('/api/suppliers', async (req, res) => {
     let connection;
     try {
         connection = await oracledb.getConnection();
-        const sql = `SELECT * FROM Supplier_Stock_Report ORDER BY Supplier_Name`;
-        const result = await connection.execute(sql, [], { outFormat: oracledb.OUT_FORMAT_OBJECT });
+        let result;
+        try {
+            // Try the VIEW first
+            result = await connection.execute(
+                `SELECT * FROM Supplier_Stock_Report ORDER BY Supplier_Name`,
+                [], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+            );
+        } catch (viewErr) {
+            // VIEW doesn't exist — fallback to direct table query
+            console.log('View not found, falling back to direct query:', viewErr.message);
+            result = await connection.execute(
+                `SELECT Supplier_ID, Name AS Supplier_Name, Contact_Email, Phone_Number,
+                         0 AS Total_Models, 0 AS Total_Stock
+                  FROM Suppliers ORDER BY Name`,
+                [], { outFormat: oracledb.OUT_FORMAT_OBJECT }
+            );
+        }
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -221,7 +236,8 @@ app.post('/api/login', async (req, res) => {
 
         if (result.rows.length === 1) {
             const user = result.rows[0];
-            res.json({ message: "Login successful", role: user.USER_ROLE, username: user.USERNAME });
+            const role = (user.USER_ROLE || '').toString().trim().toUpperCase();
+            res.json({ message: "Login successful", role: role, username: user.USERNAME });
         } else {
             res.status(401).json({ error: "Invalid username or password" });
         }
