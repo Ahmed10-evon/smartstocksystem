@@ -1065,3 +1065,102 @@ button[onclick*="deletePhone"]:hover {
     transform: translateY(-2px) !important;
     box-shadow: 0 6px 16px rgba(239,68,68,0.4) !important;
 }
+/* ============================================================
+   PAGE TRANSITION LOADER
+   ============================================================ */
+#page-loader {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(10, 6, 25, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 22px;
+    z-index: 999999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+#page-loader.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* Outer ring */
+.loader-ring {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(124, 58, 237, 0.15);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: loaderSpin 1.6s linear infinite;
+}
+
+/* Colored arc */
+.loader-ring::before {
+    content: '';
+    position: absolute;
+    inset: -2.5px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    border-top-color: #7c3aed;
+    border-right-color: #06b6d4;
+    animation: loaderSpin 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Glowing dot on top */
+.loader-ring::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: #7c3aed;
+    border-radius: 50%;
+    box-shadow: 0 0 12px #7c3aed, 0 0 30px #7c3aed, 0 0 60px rgba(124,58,237,0.4);
+}
+
+/* Inner pulsing core */
+.loader-core {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #7c3aed, #06b6d4);
+    box-shadow: 0 0 20px rgba(124,58,237,0.6);
+    animation: corePulse 1.6s ease-in-out infinite;
+}
+
+.loader-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(167, 139, 250, 0.7);
+    animation: textFade 1.6s ease-in-out infinite;
+}
+
+@keyframes loaderSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@keyframes corePulse {
+    0%, 100% { transform: scale(1);    opacity: 0.8; }
+    50%       { transform: scale(1.35); opacity: 1;   }
+}
+
+@keyframes textFade {
+    0%, 100% { opacity: 0.5; }
+    50%       { opacity: 1;   }
+}
