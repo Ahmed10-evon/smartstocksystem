@@ -64,13 +64,16 @@
                     <table id="supplier-table">
                         <thead>
                             <tr>
+                                <th>Supplier ID</th>
                                 <th>Supplier Name</th>
                                 <th>Corporate Email</th>
                                 <th>Contact Number</th>
+                                <th>Total Models</th>
+                                <th>Total Stock</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="3" style="text-align: center; color: var(--text-muted);">Parsing data layers...</td></tr>
+                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Parsing data layers...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -157,23 +160,29 @@
                 if (!response.ok) throw new Error('Data stream read fault.');
                 const data = await response.json();
                 const tableBody = document.querySelector('#supplier-table tbody');
-                tableBody.innerHTML = ''; 
+                tableBody.innerHTML = '';
 
                 if (data.length === 0) {
-                    tableBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted);">No supplier profiles active.</td></tr>`;
+                    tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">No supplier profiles active.</td></tr>`;
                     return;
                 }
 
                 data.forEach(supplier => {
                     const tr = document.createElement('tr');
-                    const name = supplier.SUPPLIER_NAME || supplier.NAME || 'N/A';
-                    const email = supplier.CONTACT_EMAIL || supplier.EMAIL || 'N/A';
-                    const phone = supplier.PHONE_NUMBER || supplier.PHONE || 'N/A';
+                    const id     = supplier.SUPPLIER_ID  !== undefined ? supplier.SUPPLIER_ID : 'N/A';
+                    const name   = supplier.SUPPLIER_NAME || supplier.NAME  || 'N/A';
+                    const email  = supplier.CONTACT_EMAIL || supplier.EMAIL || 'N/A';
+                    const phone  = supplier.PHONE_NUMBER  || supplier.PHONE || 'N/A';
+                    const models = supplier.TOTAL_MODELS  !== undefined ? supplier.TOTAL_MODELS : '—';
+                    const stock  = supplier.TOTAL_STOCK   !== undefined ? supplier.TOTAL_STOCK  : '—';
 
                     tr.innerHTML = `
+                        <td style="font-family:'JetBrains Mono',monospace; font-weight:700; color:var(--violet);">#${id}</td>
                         <td><strong>${name}</strong></td>
                         <td>${email}</td>
                         <td style="color: var(--text-muted); font-weight: 500;">${phone}</td>
+                        <td style="text-align:center; font-weight:600; color:var(--cyan);">${models}</td>
+                        <td style="text-align:center; font-weight:600; color:var(--emerald);">${stock} units</td>
                     `;
                     tableBody.appendChild(tr);
                 });
@@ -184,7 +193,7 @@
             e.preventDefault();
             if (currentRole !== 'ADMIN') { alert('Access Denied: Admin only.'); return; }
             const payload = {
-                name: document.getElementById('supName').value,
+                name:  document.getElementById('supName').value,
                 email: document.getElementById('supEmail').value,
                 phone: document.getElementById('supPhone').value
             };
@@ -198,6 +207,9 @@
                     alert('Supplier registered successfully!');
                     document.getElementById('supplier-form').reset();
                     fetchSuppliers();
+                } else {
+                    const err = await response.json();
+                    alert(`Failed to register supplier: ${err.error}`);
                 }
             } catch (err) { alert('Network layer failure.'); }
         });
