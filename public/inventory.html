@@ -59,27 +59,74 @@
 
         <div class="directory-split" style="display: grid; gap: 28px;" id="inventory-grid">
             <div class="panel">
-                <div class="form-group" style="position: relative; margin-bottom: 20px;">
-                    <input type="text" id="inventorySearch" placeholder="Search stock catalog by brand, model..." style="padding-left: 36px;">
-                    <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 14px; color: var(--text-muted);"></i>
+
+                <!-- Search + Filter Row -->
+                <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+
+                    <!-- Search Box -->
+                    <div style="position: relative; flex: 1; min-width: 200px;">
+                        <input type="text" id="inventorySearch"
+                            placeholder="Search stock catalog by brand, model..."
+                            style="padding-left: 42px; width: 100%;">
+                        <i class="fa-solid fa-magnifying-glass"
+                            style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                    </div>
+
+                    <!-- Price Sort Buttons -->
+                    <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                        <button id="btn-default" onclick="setSort('default')"
+                            style="padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+                                   background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+                                   font-size: 12px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+                                   display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                            <i class="fa-solid fa-table-list"></i> Default
+                        </button>
+                        <button id="btn-asc" onclick="setSort('asc')"
+                            style="padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+                                   background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+                                   font-size: 12px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+                                   display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                            <i class="fa-solid fa-arrow-up-wide-short"></i> Low to High
+                        </button>
+                        <button id="btn-desc" onclick="setSort('desc')"
+                            style="padding: 9px 14px; border-radius: 8px; border: 1.5px solid var(--border);
+                                   background: var(--bg-card); color: var(--text-muted); cursor: pointer;
+                                   font-size: 12px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+                                   display: flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                            <i class="fa-solid fa-arrow-down-wide-short"></i> High to Low
+                        </button>
+                    </div>
                 </div>
 
-                <h2><i class="fa-solid fa-layer-group"></i> Current Stock Levels</h2>
+                <!-- Sort status label -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <h2 style="margin: 0; padding: 0; border: none;">
+                        <i class="fa-solid fa-layer-group"></i> Current Stock Levels
+                    </h2>
+                    <span id="sort-label"
+                        style="font-size: 12px; font-weight: 600; color: var(--text-muted);
+                               font-family: 'Space Grotesk', sans-serif;">
+                    </span>
+                </div>
+                <div style="height: 1px; background: var(--border); margin-bottom: 16px;"></div>
+
                 <div style="overflow-x: auto;">
                     <table id="inventory-table">
                         <thead>
                             <tr>
-    <th>ID</th>
-    <th>Brand</th>
-    <th>Model</th>
-    <th>Price</th>
-    <th>Stock</th>
-    <th>Supplier</th>
-    <th>Action</th>
-</tr>
+                                <th>ID</th>
+                                <th>Brand</th>
+                                <th>Model</th>
+                                <th style="cursor:pointer;" onclick="setSort(currentSort === 'asc' ? 'desc' : 'asc')">
+                                    Price <i class="fa-solid fa-sort" style="font-size:10px; opacity:0.6;"></i>
+                                </th>
+                                <th>Stock</th>
+                                <th>Supplier</th>
+                                <th>Action</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Fetching stock registry...</td></tr>
+                            <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Fetching stock registry...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -118,6 +165,7 @@
     <script>
         const API_BASE = 'http://localhost:3000/api';
         let cachedInventory = [];
+        let currentSort = 'default'; // 'default' | 'asc' | 'desc'
         const currentRole = localStorage.getItem('currentRole');
         const currentUser = localStorage.getItem('currentUser');
 
@@ -137,13 +185,65 @@
         // Apply role restrictions
         function applyRoleRestrictions() {
             if (currentRole !== 'ADMIN') {
-                // Hide add form, show notice, make grid single column
                 document.getElementById('add-phone-panel').style.display = 'none';
                 document.getElementById('cashier-notice').style.display = 'block';
                 document.getElementById('inventory-grid').style.gridTemplateColumns = '1fr';
             } else {
                 document.getElementById('inventory-grid').style.gridTemplateColumns = '2fr 1fr';
             }
+        }
+
+        // ── Sort logic ──────────────────────────────────────────
+        function setSort(mode) {
+            currentSort = mode;
+
+            // Reset all buttons to default style
+            ['btn-default', 'btn-asc', 'btn-desc'].forEach(id => {
+                const btn = document.getElementById(id);
+                btn.style.background    = 'var(--bg-card)';
+                btn.style.color         = 'var(--text-muted)';
+                btn.style.borderColor   = 'var(--border)';
+                btn.style.boxShadow     = 'none';
+                btn.style.transform     = 'translateY(0)';
+            });
+
+            // Highlight active button
+            const activeId = mode === 'asc' ? 'btn-asc' : mode === 'desc' ? 'btn-desc' : 'btn-default';
+            const activeBtn = document.getElementById(activeId);
+            activeBtn.style.background  = 'linear-gradient(135deg, #7c3aed, #5b21b6)';
+            activeBtn.style.color       = '#ffffff';
+            activeBtn.style.borderColor = 'transparent';
+            activeBtn.style.boxShadow   = '0 4px 16px rgba(124,58,237,0.35)';
+            activeBtn.style.transform   = 'translateY(-2px)';
+
+            // Update sort label
+            const label = document.getElementById('sort-label');
+            if (mode === 'asc')     label.innerHTML = '<i class="fa-solid fa-arrow-up-wide-short"></i> Sorted: Price Low → High';
+            else if (mode === 'desc') label.innerHTML = '<i class="fa-solid fa-arrow-down-wide-short"></i> Sorted: Price High → Low';
+            else                    label.innerHTML = '';
+
+            // Re-render with current search text
+            applyFilters();
+        }
+
+        // ── Combined search + sort ───────────────────────────────
+        function applyFilters() {
+            const query = document.getElementById('inventorySearch').value.toLowerCase();
+
+            // 1. Filter by search
+            let filtered = cachedInventory.filter(item =>
+                (item.BRAND && item.BRAND.toLowerCase().includes(query)) ||
+                (item.MODEL && item.MODEL.toLowerCase().includes(query))
+            );
+
+            // 2. Sort by price
+            if (currentSort === 'asc') {
+                filtered = [...filtered].sort((a, b) => a.PRICE - b.PRICE);
+            } else if (currentSort === 'desc') {
+                filtered = [...filtered].sort((a, b) => b.PRICE - a.PRICE);
+            }
+
+            renderTable(filtered);
         }
 
         // Theme Engine
@@ -158,7 +258,6 @@
                 if (checkbox) checkbox.checked = false;
             }
         }
-
         function toggleTheme() {
             if (document.body.classList.contains('dark-mode')) {
                 document.body.classList.remove('dark-mode');
@@ -175,72 +274,65 @@
                 const response = await fetch(`${API_BASE}/inventory`);
                 if (!response.ok) throw new Error('Data fetch interruption.');
                 cachedInventory = await response.json();
-                renderTable(cachedInventory);
+                applyFilters();
             } catch (err) {
                 console.error(err);
             }
         }
 
         async function deletePhone(phoneId) {
-    if (!confirm(`Are you sure you want to delete Phone ID #${phoneId}? This cannot be undone.`)) return;
-    try {
-        const response = await fetch(`${API_BASE}/inventory/${phoneId}`, {
-            method: 'DELETE'
-        });
-        if (response.ok) {
-            alert('Phone deleted successfully.');
-            fetchInventory(); // Refresh table
-        } else {
-            const err = await response.json();
-            alert(`Delete failed: ${err.error}`);
+            if (!confirm(`Are you sure you want to delete Phone ID #${phoneId}? This cannot be undone.`)) return;
+            try {
+                const response = await fetch(`${API_BASE}/inventory/${phoneId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Phone deleted successfully.');
+                    fetchInventory();
+                } else {
+                    const err = await response.json();
+                    alert(`Delete failed: ${err.error}`);
+                }
+            } catch (error) { alert('Connection failure.'); }
         }
-    } catch (error) {
-        alert('Connection failure.');
-    }
-}
+
         function renderTable(data) {
             const tableBody = document.querySelector('#inventory-table tbody');
-            tableBody.innerHTML = ''; 
+            tableBody.innerHTML = '';
             if (data.length === 0) {
-tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No inventory found.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No inventory found.</td></tr>`;
                 return;
             }
             data.forEach(item => {
                 const tr = document.createElement('tr');
-                const stockStatusBadge = item.STOCK_QUANTITY <= 5 
+                const stockStatusBadge = item.STOCK_QUANTITY <= 5
                     ? `<span class="badge badge-low">${item.STOCK_QUANTITY} (Low)</span>`
                     : `<span class="badge badge-ok">${item.STOCK_QUANTITY} units</span>`;
 
-               tr.innerHTML = `
-    <td><strong>#${item.PHONE_ID}</strong></td>
-    <td>${item.BRAND}</td>
-    <td>${item.MODEL}</td>
-    <td style="font-weight: 500;">$${item.PRICE.toFixed(2)}</td>
-    <td>${stockStatusBadge}</td>
-    <td style="color: var(--text-muted);">${item.SUPPLIER_NAME || 'Unassigned'}</td>
-    ${currentRole === 'ADMIN' ? `<td><button onclick="deletePhone(${item.PHONE_ID})" style="background:#ef4444; color:white; border:none; padding:4px 10px; border-radius:6px; cursor:pointer;">Delete</button></td>` : '<td></td>'}
-`;
+                tr.innerHTML = `
+                    <td><strong>#${item.PHONE_ID}</strong></td>
+                    <td>${item.BRAND}</td>
+                    <td>${item.MODEL}</td>
+                    <td style="font-weight: 600; color: var(--amber);">$${item.PRICE.toFixed(2)}</td>
+                    <td>${stockStatusBadge}</td>
+                    <td style="color: var(--text-muted);">${item.SUPPLIER_NAME || 'Unassigned'}</td>
+                    ${currentRole === 'ADMIN'
+                        ? `<td><button onclick="deletePhone(${item.PHONE_ID})" style="background:#ef4444; color:white; border:none; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700; font-family:'Space Grotesk',sans-serif; transition:all 0.2s;">Delete</button></td>`
+                        : '<td></td>'}
+                `;
                 tableBody.appendChild(tr);
             });
         }
 
-        document.getElementById('inventorySearch').addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const filteredData = cachedInventory.filter(item => {
-                return (item.BRAND && item.BRAND.toLowerCase().includes(query)) || 
-                       (item.MODEL && item.MODEL.toLowerCase().includes(query));
-            });
-            renderTable(filteredData);
-        });
+        // Search input — re-applies sort too
+        document.getElementById('inventorySearch').addEventListener('input', applyFilters);
 
         document.getElementById('add-phone-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (currentRole !== 'ADMIN') { alert('Access Denied: Admin only.'); return; }
             const payload = {
-                brand: document.getElementById('brand').value,
-                model: document.getElementById('model').value,
-                price: parseFloat(document.getElementById('price').value),
-                stock: parseInt(document.getElementById('stock').value),
+                brand:       document.getElementById('brand').value,
+                model:       document.getElementById('model').value,
+                price:       parseFloat(document.getElementById('price').value),
+                stock:       parseInt(document.getElementById('stock').value),
                 supplier_id: parseInt(document.getElementById('supplierId').value)
             };
             try {
@@ -252,7 +344,10 @@ tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var
                 if (response.ok) {
                     alert('Smartphone added successfully!');
                     document.getElementById('add-phone-form').reset();
-                    fetchInventory(); 
+                    fetchInventory();
+                } else {
+                    const err = await response.json();
+                    alert(`Failed: ${err.error}`);
                 }
             } catch (err) { alert('Error updating records.'); }
         });
@@ -262,6 +357,8 @@ tableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var
         window.onload = () => {
             applyRoleRestrictions();
             fetchInventory();
+            // Set default button active on load
+            setSort('default');
         };
     </script>
 </body>
